@@ -24,8 +24,16 @@ public:
 
     struct Configuration
     {
-        /* Number of particles */
-        int n_particles = 1000;
+        /* Initial number of particles */
+        int n_part_init = 1000;
+
+        /* Max number of particles */
+        int n_part_max = 1000;
+
+        /* Emit particles */
+        int n_emit = 10;     // How often to emit particles
+        int n_part_emit = 1; // How many particles to emit
+        int f_emit = 0;      // From which face of the bounding box to emit
 
         /* If true, particles that exit the bounding box re-enter periodically */
         bool periodic_boundary = true;
@@ -40,6 +48,7 @@ public:
         float t_start = 0;
         float t_end = 50;
         float dt = 1e-3;
+        bool verbose = true;
 
         /* Write-control */
         int n_write = 100;
@@ -63,7 +72,11 @@ public:
     void Run();
 
 private:
-    void UniformInit();
+    /* Uniformly place particles inside of the bounding box */
+    void UniformPlacement();
+
+    /* Emit a particle */
+    void EmitParticle();
 
     void UpdateParticles();
     void OnBoundary(Particle &particle);

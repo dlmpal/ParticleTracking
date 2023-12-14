@@ -1,4 +1,5 @@
 #include "force.h"
+#include "flow.h"
 
 void Buoyancy(const ParticleSystem::Particle &particle, const PhysicalProperties &prop, float F[])
 {
@@ -8,8 +9,7 @@ void Buoyancy(const ParticleSystem::Particle &particle, const PhysicalProperties
 void StokesDrag(const ParticleSystem::Particle &particle, const PhysicalProperties &prop, float F[])
 {
     float u_c[DIM];
-    ComputeFlowVelocity(particle, prop.U, u_c);
-
+    ComputeFlowVelocity(particle, prop, u_c);
     for (auto j = 0; j < DIM; j++)
     {
         F[j] += 3 * M_PI * prop.mu_c * particle.D * (u_c[j] - particle.u[j]);
@@ -20,8 +20,8 @@ void UndisturbedFlowStress(const ParticleSystem::Particle &particle, const Physi
 {
     float m_c, u_c[DIM], gradu_c[DIM * DIM];
     m_c = prop.rho_c * ComputeSphereVolume(particle.D);
-    ComputeFlowVelocity(particle, prop.U, u_c);
-    ComputeFlowVelocityGradient(particle, prop.U, gradu_c);
+    ComputeFlowVelocity(particle, prop, u_c);
+    ComputeFlowVelocityGradient(particle, prop, gradu_c);
 
     for (auto j = 0; j < DIM; j++)
         for (auto k = 0; k < DIM; k++)
@@ -32,7 +32,7 @@ void VirtualMass(const ParticleSystem::Particle &particle, const PhysicalPropert
 {
     float m_c, gradu_c[DIM * DIM];
     m_c = prop.rho_c * ComputeSphereVolume(particle.D);
-    ComputeFlowVelocityGradient(particle, prop.U, gradu_c);
+    ComputeFlowVelocityGradient(particle, prop, gradu_c);
 
     for (auto j = 0; j < DIM; j++)
         for (auto k = 0; k < DIM; k++)

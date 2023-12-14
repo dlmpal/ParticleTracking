@@ -1,6 +1,6 @@
 #include "particle_system.h"
 
-void ParticleSystem::UniformInit()
+void ParticleSystem::UniformPlacement()
 {
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -10,17 +10,44 @@ void ParticleSystem::UniformInit()
         dist[i] = std::uniform_real_distribution<float>(bb.x_start[i], bb.x_end[i]);
     }
 
-    for (auto i = 0; i < config.n_particles; i++)
+    particles.resize(config.n_part_init);
+    for (auto &particle : particles)
     {
-        particles[i].active = true;
-        particles[i].D = prop.D_0;
-        particles[i].T = prop.T_0;
+        particle.active = true;
+        particle.D = prop.D_0;
+        particle.T = prop.T_0;
         for (auto j = 0; j < DIM; j++)
         {
-            particles[i].x[j] = dist[j](gen);
-            particles[i].u[j] = prop.u_0[j];
+            particle.x[j] = dist[j](gen);
+            particle.u[j] = prop.u_0[j];
         }
     }
+}
+
+void ParticleSystem::EmitParticle()
+{
+    if (particles.size() >= config.n_part_max)
+        return;
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::vector<std::uniform_real_distribution<float>> dist(DIM);
+    for (auto i = 0; i < DIM; i++)
+    {
+        dist[i] = std::uniform_real_distribution<float>(bb.x_start[i], bb.x_end[i]);
+    }
+
+    Particle particle;
+    particle.active = true;
+    particle.D = prop.D_0;
+    particle.T = prop.T_0;
+    for (auto i = 0; i < DIM; i++)
+    {
+        particle.x[i] = dist[i](gen);
+        particle.u[i] = prop.u_0[i];
+    }
+    particle.x[config.f_emit] = bb.x_start[config.f_emit];
+    particles.push_back(particle);
 }
 
 void ParticleSystem::ToCSV(int t_idx)
@@ -43,7 +70,7 @@ void ParticleSystem::ToVTK(int t_idx)
     file << "ParticleSimulation Time:" << t_idx << "\n";
     file << "ASCII\n";
     file << "DATASET UNSTRUCTURED_GRID\n";
-    file << "POINTS " << config.n_particles << " float\n";
+    file << "POINTS " << particles.size() << " float\n";
     for (auto const &particle : particles)
     {
         for (auto j = 0; j < 3; j++)
@@ -51,15 +78,15 @@ void ParticleSystem::ToVTK(int t_idx)
         file << "\n";
     }
 
-    file << "CELLS " << config.n_particles << " " << 2 * config.n_particles << "\n";
-    for (auto i = 0; i < config.n_particles; i++)
+    file << "CELLS " << particles.size() << " " << 2 * particles.size() << "\n";
+    for (auto i = 0; i < particles.size(); i++)
         file << 1 << " " << i << "\n";
 
-    file << "CELL_TYPES " << config.n_particles << "\n";
-    for (auto i = 0; i < config.n_particles; i++)
+    file << "CELL_TYPES " << particles.size() << "\n";
+    for (auto i = 0; i < particles.size(); i++)
         file << 1 << "\n";
 
-    file << "POINT_DATA " << config.n_particles << "\n";
+    file << "POINT_DATA " << particles.size() << "\n";
     file << "VECTORS U float\n";
     for (auto const &particle : particles)
     {
@@ -148,20 +175,24 @@ void ParticleSystem::UpdateParticles()
 
 void ParticleSystem::Run()
 {
-    particles.resize(config.n_particles);
-    UniformInit();
+    UniformPlacement();
 
     int t_idx = 0;
     float time = config.t_start;
     while (time <= config.t_end)
     {
+        if (t_idx % config.n_emit == 0)
+            EmitParticle();
+
         UpdateParticles();
 
         if (t_idx % config.n_write == 0)
         {
-            std::cout << "Time: " << round(time * 100) / 100 << "\n";
             ToFile(t_idx);
+            if (config.verbose)
+                std::cout << "Time: " << round(time * 100) / 100 << "\n";
         }
+
         t_idx++;
         time += config.dt;
     }
